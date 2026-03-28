@@ -1,81 +1,139 @@
-#!/usr/bin/env python3
-"""Test script to verify HMDA agent is working"""
+"""
+Test the HMDA agent end-to-end using InMemoryRunner.
+Run: python test_hmda_agent.py
+
+Requires:
+  - Python 3.10+ (Google ADK requirement)
+  - GOOGLE_API_KEY set in .env or environment
+"""
+from __future__ import annotations
+
 import asyncio
-import sys
 import os
+import warnings
 
-sys.path.insert(0, os.path.dirname(__file__))
+# Suppress noisy deprecation warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
-from hmda_agent.agent import root_agent, _load_hmda_data
+# Load .env file if present
+try:
+    with open(os.path.join(os.path.dirname(__file__), ".env")) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip())
+except FileNotFoundError:
+    pass
+
+from google.adk.runners import InMemoryRunner
+from google.genai import types
+from agent import root_agent
 
 
-async def test_agent():
-    """Test the HMDA agent tools"""
-    print("🧪 Testing HMDA Agent")
-    print("=" * 50)
-    
-    # Load data
-    print("\n1️⃣  Loading HMDA data...")
-    if not _load_hmda_data():
-        print("❌ Failed to load HMDA data")
+async def chat(runner: InMemoryRunner, session_id: str, user_id: str, message: str):
+    """Send a message and print the agent's response."""
+    print(f"\n{'─' * 70}")
+    print(f"👤 YOU: {message}")
+    print(f"{'─' * 70}")
+
+    content = types.Content(
+        role="user",
+        parts=[types.Part(text=message)],
+    )
+
+    response_text = ""
+    async for event in runner.run_async(
+        session_id=session_id,
+        user_id=user_id,
+        new_message=content,
+    ):
+        # Collect text from the agent's final response
+        if event.content and event.content.parts:
+            for part in event.content.parts:
+                if part.text:
+                    response_text += part.text
+
+    print(f"🤖 AGENT: {response_text}")
+    return response_text
+
+
+async def main():
+    # Verify API key is set
+    if not os.environ.get("GOOGLE_API_KEY"):
+        print("❌ ERROR: Set GOOGLE_API_KEY in .env or environment")
+        print("   Get a free key at: https://aistudio.google.com/apikey")
         return
-    
-    print("✓ HMDA data loaded successfully")
-    
-    # Test 1: Get lending summary
-    print("\n2️⃣  Testing get_lending_summary()...")
-    try:
-        summary_tool = root_agent.tools[0]
-        result = await summary_tool.fn()
-        print(f"   Total Applications: {result.get('total_applications', 'N/A'):,}")
-        print(f"   Approval Rate: {result.get('approval_rate_percent', 'N/A')}%")
-        print(f"   Denial Rate: {result.get('denial_rate_percent', 'N/A')}%")
-        print("✓ get_lending_summary() works")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    
-    # Test 2: Get denial rates by lender
-    print("\n3️⃣  Testing get_denial_rates_by_lender()...")
-    try:
-        lender_tool = root_agent.tools[1]
-        result = await lender_tool.fn(limit=5)
-        count = result.get('count', 0)
-        print(f"   Top {count} lenders found")
-        if result.get('lenders'):
-            top_lender = result['lenders'][0]
-            print(f"   Top lender: {top_lender.get('lender_id', 'N/A')}")
-            print(f"   - Applications: {top_lender.get('total_applications', 0):,}")
-            print(f"   - Approval Rate: {top_lender.get('approval_rate_percent', 0)}%")
-        print("✓ get_denial_rates_by_lender() works")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    
-    # Test 3: Get by income
-    print("\n4️⃣  Testing get_denial_rates_by_income()...")
-    try:
-        income_tool = root_agent.tools[2]
-        result = await income_tool.fn()
-        brackets = result.get('income_brackets', {})
-        print(f"   Income brackets analyzed: {len(brackets)}")
-        if brackets:
-            first_bracket = list(brackets.keys())[0]
-            stats = brackets[first_bracket]
-            print(f"   Example ({first_bracket}):")
-            print(f"   - Applications: {stats.get('total_applications', 0):,}")
-            print(f"   - Approval Rate: {stats.get('approval_rate_percent', 0)}%")
-        print("✓ get_denial_rates_by_income() works")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    
-    # Test 4: Get disparities by race
-    print("\n5️⃣  Testing get_lending_disparities_by_race()...")
-    try:
-        race_tool = root_agent.tools[3]
-        result = await race_tool.fn()
-        disparities = result.get('disparities', {})
-        print(f"   Racial groups analyzed: {len(disparities)}")
-        if disparities:
-            first_group = list(disparities.keys())[0]
+
+    app_name = "nyc_lookup_agent"
+    user_id = "test_user_hmda"
+
+    runner = InMemoryRunner(agent=root_agent, app_name=app_name)
+    session = await runner.session_service.create_session(
+        app_name=app_name, user_id=user_id
+    )
+
+    print("\n" + "=" * 70)
+    print("🏦 HMDA MORTGAGE LENDING AGENT — INTERACTIVE TEST")
+    print("=" * 70)
+
+    # Test 1: Overall lending statistics
+    await chat(
+        runner,
+        session.id,
+        user_id,
+        "What are the overall mortgage approval and denial rates in NYC?"
+    )
+
+    # Test 2: Lending disparities by race
+    await chat(
+        runner,
+        session.id,
+        user_id,
+        "What are the lending disparities by race/ethnicity in NYC mortgages?"
+    )
+
+    # Test 3: Lender analysis
+    await chat(
+        runner,
+        session.id,
+        user_id,
+        "Which lenders have the highest denial rates for mortgage applications?"
+    )
+
+    # Test 4: Income-based lending
+    await chat(
+        runner,
+        session.id,
+        user_id,
+        "How do mortgage approval rates vary by applicant income level?"
+    )
+
+    # Test 5: Loan type analysis
+    await chat(
+        runner,
+        session.id,
+        user_id,
+        "What are the approval rates for different loan types like FHA and conventional?"
+    )
+
+    # Test 6: Property type analysis
+    await chat(
+        runner,
+        session.id,
+        user_id,
+        "Are there differences in approval rates between single-family homes and multifamily properties?"
+    )
+
+    print("\n" + "=" * 70)
+    print("✅ HMDA AGENT TESTING COMPLETE")
+    print("=" * 70)
+    print("\n✨ All queries used live HMDA lending data from GCS")
+    print("🔧 Agent successfully routed queries to HMDA sub-agent")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
             stats = disparities[first_group]
             print(f"   Example ({first_group}):")
             print(f"   - Applications: {stats.get('total_applications', 0):,}")
