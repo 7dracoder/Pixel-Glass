@@ -88,7 +88,38 @@ async def main():
     await chat(runner, session.id, user_id,
                "Are there any good Chinese restaurants in Brooklyn?")
 
-    print("\n\nDone! All queries used live Socrata API + bundled centerline data.")
+    # Test HMDA agent - Overall lending statistics
+    print("\n" + "=" * 60)
+    print("Testing HMDA Agent (Mortgage Lending)")
+    print("=" * 60)
+    
+    await chat(runner, session.id, user_id,
+               "What are the overall mortgage approval and denial rates in NYC?")
+
+    # Test HMDA - Lending disparities by race
+    await chat(runner, session.id, user_id,
+               "What are the lending disparities by race/ethnicity in NYC mortgages?")
+
+    # Test HMDA - Lender analysis
+    await chat(runner, session.id, user_id,
+               "Which lenders have the highest denial rates for mortgage applications?")
+
+    # Test HMDA - Income-based lending
+    await chat(runner, session.id, user_id,
+               "How do mortgage approval rates vary by applicant income level?")
+
+    # Test HMDA - Loan type analysis
+    await chat(runner, session.id, user_id,
+               "What are the approval rates for different loan types like FHA and conventional?")
+
+    # Test HMDA - Property type analysis
+    await chat(runner, session.id, user_id,
+               "Are there differences in approval rates between single-family and multifamily properties?")
+
+    print("\n\nDone! All queries used live APIs:")
+    print("  • Restaurant: Socrata API (NYC Open Data)")
+    print("  • Location: Bundled centerline data")
+    print("  • HMDA: GCS mortgage lending data")
 
 
 if __name__ == "__main__":

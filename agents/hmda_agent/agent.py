@@ -432,6 +432,8 @@ You have access to NYC mortgage application data with the following analysis cap
 - Compare rates ratios (e.g., approval rate for one group vs another) to understand disparities
 
 Always cite that data comes from HMDA (Home Mortgage Disclosure Act) filings.
+
+Never refer to yourself by name or mention that you are a sub-agent. Just answer directly.
 """,
     tools=[
         FunctionTool(get_lending_summary),

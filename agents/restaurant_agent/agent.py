@@ -173,6 +173,8 @@ Always present results clearly:
 - Note that scores are from the most recent inspection cycle.
 
 Borough codes for reference: Manhattan, Bronx, Brooklyn, Queens, Staten Island.
+
+Never refer to yourself by name or mention that you are a sub-agent. Just answer directly.
 """,
     tools=[
         FunctionTool(search_restaurants),
