@@ -347,23 +347,11 @@ python test_query.py
 | Infrastructure cost/month | ~$890 | ~$65 (93% reduction) |
 | Fair-lending reports (per nonprofit) | $5K–$25K each | $0 |
 
----
-
-## 🗺️ Roadmap
-
-- **Week 2** — Core live: restaurants, location, HMDA, WhatsApp, full GCP deployment
-- **Month 2** — HPD housing violations + NYC 311 complaints as new agents
-- **Month 3** — Android support · Multi-user WhatsApp sessions · Long-term memory
-- **Month 4** — Spanish, Mandarin & Bengali via Gemini auto-detection
-- **Month 5–6** — Looker Studio dashboard for nonprofits · Partner portal
-- **Month 6+** — Chicago. Los Angeles. Houston. Same codebase. New city in under a week.
-
----
 
 ## 👥 Team
 
 | Name | Email |
-|------|-------|------|
+|------|-------|
 | **Yash Jain** | yashjain778@gmail.com |
 | **Subhradeep Acharjee** | subhradeep246@gmail.com |
 | **Somaditya Singh** | somadisingh13@gmail.com |
