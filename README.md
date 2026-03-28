@@ -14,7 +14,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Google Cloud](https://img.shields.io/badge/Google_Cloud-GCP-4285F4?style=flat-square&logo=google-cloud&logoColor=white)
-![Gemini](https://img.shields.io/badge/Gemini_Live-2.5_Flash_Lite-8E44AD?style=flat-square&logo=google&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini_Live-3.1_Flash_Lite-8E44AD?style=flat-square&logo=google&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Live-brightgreen?style=flat-square)
 
