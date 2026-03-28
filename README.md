@@ -68,7 +68,7 @@ The answer is already waiting. We just made city data speakable.
 | Layer | Component | Role |
 |-------|-----------|------|
 | 👓 **Eyes** | Meta Ray-Ban Glasses + iOS App | Stream 1fps video + live audio |
-| 🧠 **Brain** | Gemini 2.5 Flash Lite | Real-time voice, video, and reasoning |
+| 🧠 **Brain** | Gemini 3.1 Flash Lite | Real-time voice, video, and reasoning |
 | ⚙️ **Agents** | Google ADK Orchestrator + 3 Sub-agents | Route queries to the right specialist |
 | 📊 **Data** | Socrata APIs + GCS/BigQuery (HMDA) | Live city data retrieval |
 | 💬 **Reach** | WhatsApp Cloud API + Pub/Sub | Deliver results to any device |
