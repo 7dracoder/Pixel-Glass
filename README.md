@@ -12,11 +12,17 @@
 
 **Ask the city anything. Hear the answer through your glasses. In under 2 seconds.**
 
+![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)
+![Google Cloud](https://img.shields.io/badge/Google_Cloud-GCP-4285F4?style=flat-square&logo=google-cloud&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini_Live-2.5_Flash_Lite-8E44AD?style=flat-square&logo=google&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Live-brightgreen?style=flat-square)
+
 </div>
 
 ---
 
-## 🪄 What Is Pixel Glass?
+## What Is Pixel Glass?
 
 Pixel Glass is an AI-native platform that bridges smart glasses, real-time multimodal AI, and live public city datasets into a single, seamless, hands-free experience.
 
@@ -30,20 +36,20 @@ The answer is already waiting. We just made city data speakable.
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- **🔊 Hands-Free Voice Interface** — Real-time bidirectional audio via Gemini Live through Meta Ray-Ban glasses
-- **🍽️ Restaurant Health Intelligence** — Live NYC DOHMH inspection grades, violations, and scores via Socrata API
-- **🗺️ Street & Location Lookup** — NYC Street Centerline dataset for block IDs, geometry, and street segment data
-- **🏦 HMDA Fair Lending Analysis** — Mortgage approval/denial rates by race, lender, income, loan type, and property type from CFPB data (187K+ records)
-- **💬 WhatsApp Integration** — Send query results to 3.14B+ WhatsApp users with zero app install required
-- **🤖 Multi-Agent Architecture** — Google ADK orchestrator with three specialized A2A sub-agents on Cloud Run
-- **🔁 Nightly Data Refresh** — Cloud Scheduler auto-refreshes HMDA datasets for freshness
-- **🌍 40+ Languages** — Gemini Live auto-detects language natively
+- **Hands-Free Voice Interface** — Real-time bidirectional audio via Gemini Live through Meta Ray-Ban glasses
+- **Restaurant Health Intelligence** — Live NYC DOHMH inspection grades, violations, and scores via Socrata API
+- **Street & Location Lookup** — NYC Street Centerline dataset for block IDs, geometry, and street segment data
+- **HMDA Fair Lending Analysis** — Mortgage approval/denial rates by race, lender, income, loan type, and property type from CFPB data (187K+ records)
+- **WhatsApp Integration** — Send query results to 3.14B+ WhatsApp users with zero app install required
+- **Multi-Agent Architecture** — Google ADK orchestrator with three specialized A2A sub-agents on Cloud Run
+- **Nightly Data Refresh** — Cloud Scheduler auto-refreshes HMDA datasets for freshness
+- **40+ Languages** — Gemini Live auto-detects language natively
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```
 [Meta Ray-Ban Glasses]
@@ -53,8 +59,8 @@ The answer is already waiting. We just made city data speakable.
 [Cloud Run: Orchestrator Agent (ADK + A2A)]
         ↓  A2A delegation
 ┌────────────────────────────────────────────┐
-│  🍽️ Restaurant Agent │ 🗺️ Location Agent  │
-│  🏦 HMDA Agent       │ 💬 WhatsApp Agent  │
+│  Restaurant Agent │ Location Agent         │
+│  HMDA Agent       │ WhatsApp Agent         │
 └────────────────────────────────────────────┘
         ↓  data
 [Vertex AI RAG Engine] [Socrata Live API]
@@ -67,15 +73,15 @@ The answer is already waiting. We just made city data speakable.
 
 | Layer | Component | Role |
 |-------|-----------|------|
-| 👓 **Eyes** | Meta Ray-Ban Glasses + iOS App | Stream 1fps video + live audio |
-| 🧠 **Brain** | Gemini 3.1 Flash Lite | Real-time voice, video, and reasoning |
-| ⚙️ **Agents** | Google ADK Orchestrator + 3 Sub-agents | Route queries to the right specialist |
-| 📊 **Data** | Socrata APIs + GCS/BigQuery (HMDA) | Live city data retrieval |
-| 💬 **Reach** | WhatsApp Cloud API + Pub/Sub | Deliver results to any device |
+| **Eyes** | Meta Ray-Ban Glasses + iOS App | Stream 1fps video + live audio |
+| **Brain** | Gemini 2.5 Flash Lite | Real-time voice, video, and reasoning |
+| **Agents** | Google ADK Orchestrator + 3 Sub-agents | Route queries to the right specialist |
+| **Data** | Socrata APIs + GCS/BigQuery (HMDA) | Live city data retrieval |
+| **Reach** | WhatsApp Cloud API + Pub/Sub | Deliver results to any device |
 
 ---
 
-## 📊 Datasets
+## Datasets
 
 | Dataset | Source | Access Method |
 |---------|--------|---------------|
@@ -87,7 +93,7 @@ All datasets are public, free, and updated automatically.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 <details>
 <summary><strong>Hardware</strong></summary>
@@ -139,7 +145,7 @@ All datasets are public, free, and updated automatically.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Pixel-Glass/
@@ -147,8 +153,6 @@ Pixel-Glass/
 ├── README.md
 ├── .gitignore
 ├── LICENSE
-├── CHANGELOG.md
-├── CONTRIBUTING.md
 │
 ├── agents/                             # Core ADK agent implementations
 │   ├── agent.py                        # Orchestrator — routes all requests via A2A
@@ -180,19 +184,12 @@ Pixel-Glass/
 │   ├── requirements.txt
 │   └── README.md
 │
-├── assets/                             # Images and visual assets
-│   ├── cover.png
-│   ├── teaserimage.png
-│   ├── how.png
-│   ├── dev_mode.png
-│   └── title.png
-│
 └── test_query.py                       # Quick end-to-end test script
 ```
 
 ---
 
-## 🚀 Quickstart
+## Quickstart
 
 ### Prerequisites
 
@@ -262,7 +259,7 @@ gcloud run deploy webhook-handler \
   --set-secrets="WHATSAPP_TOKEN=whatsapp-token:latest,GEMINI_KEY=gemini-key:latest"
 ```
 
-### 7. Connect the iOS App
+### 6. Connect the iOS App
 
 Update your iOS app tool config with your Cloud Run orchestrator URL:
 
@@ -276,7 +273,7 @@ Update your iOS app tool config with your Cloud Run orchestrator URL:
 }
 ```
 
-### 8. Test End-to-End
+### 7. Test End-to-End
 
 ```bash
 # Run unit and integration tests
@@ -288,16 +285,18 @@ python test_query.py
 
 ---
 
-## 🔧 Agent Tools
+## Agent Tools
 
-### 🍽️ Restaurant Agent
+### Restaurant Agent
+
 | Tool | Description |
 |------|-------------|
 | `search_restaurants()` | Search by name, zip, cuisine, borough, grade (up to 50 results) |
 | `get_restaurant_details(camis)` | Full inspection history by CAMIS ID |
 | `get_grade_summary()` | Grade distribution (A/B/C) in an area |
 
-### 🗺️ Location Agent
+### Location Agent
+
 | Tool | Description |
 |------|-------------|
 | `search_streets()` | Find streets by name, borough, zip code |
@@ -306,7 +305,8 @@ python test_query.py
 | `get_streets_in_area()` | List all streets in a borough/zip code |
 | `find_restaurants_on_street()` | Find restaurants on a specific street |
 
-### 🏦 HMDA Agent
+### HMDA Agent
+
 | Tool | Description |
 |------|-------------|
 | `get_lending_summary()` | Overall NYC approval/denial/withdrawal rates |
@@ -318,7 +318,7 @@ python test_query.py
 
 ---
 
-## 💡 Example Queries
+## Example Queries
 
 ```
 "What's the health grade of this restaurant?"
@@ -336,7 +336,7 @@ python test_query.py
 
 ---
 
-## 📈 Impact by the Numbers
+## Impact by the Numbers
 
 | Metric | Before | After |
 |--------|--------|-------|
@@ -347,8 +347,9 @@ python test_query.py
 | Infrastructure cost/month | ~$890 | ~$65 (93% reduction) |
 | Fair-lending reports (per nonprofit) | $5K–$25K each | $0 |
 
+---
 
-## 👥 Team
+## Team
 
 | Name | Email |
 |------|-------|
@@ -359,7 +360,7 @@ python test_query.py
 
 ---
 
-## 🤝 Partners & Powered By
+## Partners & Powered By
 
 <div align="center">
 
@@ -370,7 +371,7 @@ WhatsApp Business API · NYC Open Data · CFPB HMDA · Google ADK
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
@@ -378,8 +379,8 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 <div align="center">
 
-Every city has public data. Every city deserves this.
+*Every city has public data. Every city deserves this.*
 
-⭐ Star this repo if you believe information should meet people where they are.
+Star this repo if you believe information should meet people where they are.
 
 </div>
