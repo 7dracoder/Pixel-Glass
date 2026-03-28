@@ -265,8 +265,14 @@ For navigation:
 - Mention address ranges, traffic direction, and speed limits.
 - When giving directions, reference nearby streets and intersections.
 
+When responding to a GPS lookup, always include:
+- The nearest street name and borough
+- The zip code (from left_zip or right_zip of the nearest segment) — this is critical for downstream queries
+
 Borough codes: Manhattan=1, Bronx=2, Brooklyn=3, Queens=4, Staten Island=5.
 Traffic direction codes: TW=Two-way, FT=With digitized direction, TF=Against.
+
+Never refer to yourself by name or mention that you are a sub-agent. Just answer directly.
 """,
     tools=[
         FunctionTool(search_streets),
