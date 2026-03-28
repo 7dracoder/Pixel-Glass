@@ -369,14 +369,6 @@ WhatsApp Business API · NYC Open Data · CFPB HMDA · Google ADK
 
 </div>
 
----
-
-## License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
----
-
 <div align="center">
 
 *Every city has public data. Every city deserves this.*
