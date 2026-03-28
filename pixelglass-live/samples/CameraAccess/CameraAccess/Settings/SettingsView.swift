@@ -14,6 +14,7 @@ struct SettingsView: View {
   @State private var speakerOutputEnabled: Bool = false
   @State private var videoStreamingEnabled: Bool = true
   @State private var proactiveNotificationsEnabled: Bool = true
+  @State private var adkAgentURL: String = ""
   @State private var showResetConfirmation = false
 
   var body: some View {
@@ -92,6 +93,19 @@ struct SettingsView: View {
           }
         }
 
+        Section(header: Text("ADK Agent"), footer: Text("Connect to an ADK agent server for NYC data queries (restaurants, streets, mortgages). Use a local address for development or a Cloud Run URL for production.")) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Agent URL")
+              .font(.caption)
+              .foregroundColor(.secondary)
+            TextField("http://macbook.local:8080", text: $adkAgentURL)
+              .autocapitalization(.none)
+              .disableAutocorrection(true)
+              .keyboardType(.URL)
+              .font(.system(.body, design: .monospaced))
+          }
+        }
+
         Section(header: Text("Audio"), footer: Text("Route audio output to the iPhone speaker instead of glasses. Useful for demos where others need to hear.")) {
           Toggle("Speaker Output", isOn: $speakerOutputEnabled)
         }
@@ -153,6 +167,7 @@ struct SettingsView: View {
     speakerOutputEnabled = settings.speakerOutputEnabled
     videoStreamingEnabled = settings.videoStreamingEnabled
     proactiveNotificationsEnabled = settings.proactiveNotificationsEnabled
+    adkAgentURL = settings.adkAgentURL
   }
 
   private func save() {
@@ -168,5 +183,6 @@ struct SettingsView: View {
     settings.speakerOutputEnabled = speakerOutputEnabled
     settings.videoStreamingEnabled = videoStreamingEnabled
     settings.proactiveNotificationsEnabled = proactiveNotificationsEnabled
+    settings.adkAgentURL = adkAgentURL.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }

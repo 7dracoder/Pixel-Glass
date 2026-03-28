@@ -11,8 +11,11 @@ class GeminiSessionViewModel: ObservableObject {
   @Published var aiTranscript: String = ""
   @Published var toolCallStatus: ToolCallStatus = .idle
   @Published var openClawConnectionState: OpenClawConnectionState = .notConfigured
+  @Published var adkConnectionState: ADKConnectionState = .notConfigured
   private let geminiService = GeminiLiveService()
   private let openClawBridge = OpenClawBridge()
+  private let adkBridge = ADKAgentBridge()
+  private let locationManager = LocationManager()
   private var toolCallRouter: ToolCallRouter?
   private let audioManager = AudioManager()
   private let eventClient = OpenClawEventClient()
@@ -88,8 +91,15 @@ class GeminiSessionViewModel: ObservableObject {
     await openClawBridge.checkConnection()
     openClawBridge.resetSession()
 
-    // Wire tool call handling
-    toolCallRouter = ToolCallRouter(bridge: openClawBridge)
+    // Initialize ADK bridge: reset session, run health check
+    adkBridge.resetSession()
+    await adkBridge.checkConnection()
+
+    // Request location permission for GPS-enriched queries
+    locationManager.requestPermission()
+
+    // Wire tool call handling with both bridges + location manager
+    toolCallRouter = ToolCallRouter(bridge: openClawBridge, adkBridge: adkBridge, locationManager: locationManager)
 
     geminiService.onToolCall = { [weak self] toolCall in
       guard let self else { return }
@@ -119,6 +129,7 @@ class GeminiSessionViewModel: ObservableObject {
         self.isModelSpeaking = self.geminiService.isModelSpeaking
         self.toolCallStatus = self.openClawBridge.lastToolCallStatus
         self.openClawConnectionState = self.openClawBridge.connectionState
+        self.adkConnectionState = self.adkBridge.connectionState
       }
     }
 
@@ -190,6 +201,9 @@ class GeminiSessionViewModel: ObservableObject {
     userTranscript = ""
     aiTranscript = ""
     toolCallStatus = .idle
+    adkBridge.connectionState = .notConfigured
+    adkBridge.lastToolCallStatus = .idle
+    adkConnectionState = .notConfigured
   }
 
   func sendVideoFrameIfThrottled(image: UIImage) {

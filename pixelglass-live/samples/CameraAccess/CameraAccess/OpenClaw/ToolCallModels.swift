@@ -85,8 +85,28 @@ enum ToolCallStatus: Equatable {
 enum ToolDeclarations {
 
   static func allDeclarations() -> [[String: Any]] {
-    return [execute]
+    return [execute, nycLookup]
   }
+
+  static let nycLookup: [String: Any] = [
+    "name": "nyc_lookup",
+    "description": "Query NYC-specific data: restaurant health inspections, street/location lookups, and mortgage lending analysis. Use this for ANY question about New York City restaurants, streets, neighborhoods, boroughs, or mortgage data. The system has access to live NYC Open Data and HMDA filings.",
+    "parameters": [
+      "type": "object",
+      "properties": [
+        "query": [
+          "type": "string",
+          "description": "The user's question about NYC data. Be specific and include all relevant details."
+        ],
+        "category": [
+          "type": "string",
+          "enum": ["restaurant", "location", "mortgage", "general"],
+          "description": "Category hint: 'restaurant' for food/dining, 'location' for streets/navigation, 'mortgage' for lending data, 'general' for mixed queries."
+        ]
+      ],
+      "required": ["query"]
+    ] as [String: Any]
+  ]
 
   static let execute: [String: Any] = [
     "name": "execute",

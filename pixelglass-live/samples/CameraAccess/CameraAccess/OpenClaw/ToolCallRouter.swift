@@ -3,14 +3,17 @@ import Foundation
 @MainActor
 class ToolCallRouter {
   private let bridge: OpenClawBridge
+  private let adkBridge: ADKAgentBridge
+  private let locationManager: LocationManager
   private var inFlightTasks: [String: Task<Void, Never>] = [:]
 
-  init(bridge: OpenClawBridge) {
+  init(bridge: OpenClawBridge, adkBridge: ADKAgentBridge, locationManager: LocationManager) {
     self.bridge = bridge
+    self.adkBridge = adkBridge
+    self.locationManager = locationManager
   }
 
-  /// Route a tool call from Gemini to OpenClaw. Calls sendResponse with the
-  /// JSON dictionary to send back as a toolResponse message.
+  /// Route a tool call from Gemini to the appropriate backend.
   func handleToolCall(
     _ call: GeminiFunctionCall,
     sendResponse: @escaping ([String: Any]) -> Void
@@ -22,8 +25,22 @@ class ToolCallRouter {
           callName, callId, String(describing: call.args))
 
     let task = Task { @MainActor in
-      let taskDesc = call.args["task"] as? String ?? String(describing: call.args)
-      let result = await bridge.delegateTask(task: taskDesc, toolName: callName)
+      let result: ToolResult
+
+      switch callName {
+      case "nyc_lookup":
+        let query = call.args["query"] as? String ?? ""
+        let category = call.args["category"] as? String
+        let location = locationManager.getCurrentLocation()
+        result = await adkBridge.sendQuery(query: query, category: category, location: location)
+
+      case "execute":
+        let taskDesc = call.args["task"] as? String ?? String(describing: call.args)
+        result = await bridge.delegateTask(task: taskDesc, toolName: callName)
+
+      default:
+        result = .failure("Unknown tool: \(callName)")
+      }
 
       guard !Task.isCancelled else {
         NSLog("[ToolCall] Task %@ was cancelled, skipping response", callId)
