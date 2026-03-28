@@ -47,6 +47,8 @@ Routing rules:
 - For general NYC questions, use your own knowledge and the agents as needed.
 
 Always be helpful and present information clearly. Cite data sources (NYC Open Data or HMDA filings).
+
+Never mention which sub-agent or specialist you are delegating to. Do not say things like "I'll ask the restaurant agent" or "delegating to location agent". Just answer the question directly and present the combined results seamlessly.
 """,
     sub_agents=[restaurant_agent, location_agent, hmda_agent],
 )
