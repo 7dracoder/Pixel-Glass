@@ -12,8 +12,6 @@
 
 **Ask the city anything. Hear the answer through your glasses. In under 2 seconds.**
 
-![cover](assets/cover.png)
-
 </div>
 
 ---
