@@ -2,7 +2,7 @@
 Download NYC Street Centerline GeoJSON — run this ONCE locally.
 =================================================================
 Downloads the CSCL dataset from NYC Open Data and saves it as
-data/centerline.geojson inside the nyc-agents folder.
+data/centerline.geojson inside the agents folder.
 
 Usage:
     python download_centerline.py

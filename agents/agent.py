@@ -2,9 +2,9 @@
 NYC Agents — Root Orchestrator (Google ADK)
 ============================================
 Top-level agent that delegates to the Restaurant and Location sub-agents.
-Run locally:   adk run nyc-agents
-Serve as A2A:  adk api_server --port 8080 nyc-agents
-Deploy:        gcloud run deploy nyc-agents --source .
+Run locally:   adk run agents
+Serve as A2A:  adk api_server --port 8080 agents
+Deploy:        gcloud run deploy agents --source .
 """
 
 from google.adk import Agent

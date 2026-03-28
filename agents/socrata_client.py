@@ -6,7 +6,6 @@ No GCP storage needed - all queries hit the Socrata SODA API directly.
 
 Endpoints used:
   - Restaurant Inspections: https://data.cityofnewyork.us/resource/43nn-pn8j.json
-  - 311 Service Requests:   https://data.cityofnewyork.us/resource/erm2-nwe9.json
 """
 from __future__ import annotations
 
@@ -21,7 +20,6 @@ NYC_OPEN_DATA_BASE = "https://data.cityofnewyork.us/resource"
 # Dataset identifiers on NYC Open Data (all confirmed to have SODA JSON APIs)
 DATASETS = {
     "restaurant_inspections": "43nn-pn8j",
-    "service_requests_311": "erm2-nwe9",
 }
 
 DEFAULT_LIMIT = 20
@@ -181,99 +179,4 @@ class SocrataClient:
             },
         )
 
-    async def get_distinct_streets(
-        self,
-        borough: str | None = None,
-        zipcode: str | None = None,
-        limit: int = DEFAULT_LIMIT,
-    ) -> list[dict]:
-        """Get distinct street names from restaurant data for an area."""
-        clauses: list[str] = []
-        if borough:
-            clauses.append(f"upper(boro) LIKE '%{borough.upper().replace(chr(39), '')}%'")
-        if zipcode:
-            clauses.append(f"zipcode='{zipcode}'")
 
-        params: dict[str, str] = {
-            "$select": "street, count(camis) as restaurant_count",
-            "$group": "street",
-            "$order": "restaurant_count DESC",
-            "$limit": str(limit),
-        }
-        if clauses:
-            params["$where"] = " AND ".join(clauses)
-
-        return await self.query("restaurant_inspections", params)
-
-    async def search_311_location(
-        self,
-        street_name: str | None = None,
-        borough: str | None = None,
-        zipcode: str | None = None,
-        complaint_type: str | None = None,
-        limit: int = DEFAULT_LIMIT,
-    ) -> list[dict]:
-        """Search 311 service requests for location context.
-
-        The 311 dataset has rich address data including street, cross streets,
-        borough, zip, lat/lon for millions of NYC locations.
-        """
-        clauses: list[str] = []
-        if street_name:
-            clauses.append(
-                f"upper(street_name) LIKE '%{street_name.upper().replace(chr(39), '')}%'"
-            )
-        if borough:
-            clauses.append(
-                f"upper(borough) LIKE '%{borough.upper().replace(chr(39), '')}%'"
-            )
-        if zipcode:
-            clauses.append(f"incident_zip='{zipcode}'")
-        if complaint_type:
-            clauses.append(
-                f"upper(complaint_type) LIKE '%{complaint_type.upper().replace(chr(39), '')}%'"
-            )
-
-        params: dict[str, str] = {
-            "$select": (
-                "unique_key, complaint_type, descriptor, "
-                "incident_address, street_name, cross_street_1, cross_street_2, "
-                "borough, incident_zip, latitude, longitude, "
-                "created_date, status"
-            ),
-            "$order": "created_date DESC",
-            "$limit": str(limit),
-        }
-        if clauses:
-            params["$where"] = " AND ".join(clauses)
-
-        return await self.query("service_requests_311", params)
-
-    async def get_location_context(
-        self,
-        zipcode: str | None = None,
-        borough: str | None = None,
-        limit: int = 20,
-    ) -> list[dict]:
-        """Get distinct streets and cross-street info for an area via 311 data."""
-        clauses: list[str] = ["street_name IS NOT NULL"]
-        if zipcode:
-            clauses.append(f"incident_zip='{zipcode}'")
-        if borough:
-            clauses.append(
-                f"upper(borough) LIKE '%{borough.upper().replace(chr(39), '')}%'"
-            )
-
-        return await self.query(
-            "service_requests_311",
-            {
-                "$select": (
-                    "street_name, cross_street_1, cross_street_2, "
-                    "incident_zip, borough, count(*) as request_count"
-                ),
-                "$where": " AND ".join(clauses),
-                "$group": "street_name, cross_street_1, cross_street_2, incident_zip, borough",
-                "$order": "request_count DESC",
-                "$limit": str(limit),
-            },
-        )
