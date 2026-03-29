@@ -10,7 +10,7 @@
          G L A S S
 ```
 
-**Ask the city anything. Hear the answer through your glasses. In under 2 seconds.**
+**Ask the city anything. Hear the answer through your glasses. In under 5 seconds.**
 
 ![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Google Cloud](https://img.shields.io/badge/Google_Cloud-GCP-4285F4?style=flat-square&logo=google-cloud&logoColor=white)
