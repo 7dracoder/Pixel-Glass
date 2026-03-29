@@ -1,0 +1,260 @@
+VisionClaw × GCP: Full Implementation Guide
+Your system combines VisionClaw's three-layer pipeline (Meta Ray-Ban glasses → iOS app → Gemini Live) with OpenClaw agents, backed by a full GCP architecture. Here is everything from environment setup to production.
+
+System Architecture Overview
+The entire system has five interconnected layers:
+
+text
+[Meta Ray-Ban Glasses]
+        ↓ video frames ~1fps + mic audio
+[VisionClaw iOS App] ←→ [Gemini Live API]
+        ↓ tool calls via OpenClaw
+[Cloud Run: Orchestrator Agent (ADK + A2A)]
+        ↓ A2A delegation
+┌───────────────────────────────────────┐
+│  Location Agent │ Restaurant Agent    │
+│  RAG/HMDA Agent │ WhatsApp Agent      │
+└───────────────────────────────────────┘
+        ↓ data
+[Vertex AI RAG Engine] [Socrata Live API]
+[BigQuery] [Cloud Storage] [Firestore]
+        ↑
+[WhatsApp Business API] → [Pub/Sub] → [Cloud Run Worker]
+Phase 1: GCP Project Setup
+Enable all required APIs in one shot in Cloud Shell or local gcloud CLI:
+
+bash
+gcloud services enable \
+  run.googleapis.com \
+  aiplatform.googleapis.com \
+  bigquery.googleapis.com \
+  pubsub.googleapis.com \
+  storage.googleapis.com \
+  firestore.googleapis.com \
+  artifactregistry.googleapis.com \
+  cloudbuild.googleapis.com \
+  apigateway.googleapis.com \
+  secretmanager.googleapis.com \
+  cloudscheduler.googleapis.com
+Create a dedicated service account with roles for Vertex AI User, BigQuery Data Editor, Cloud Run Invoker, Storage Object Admin, and Pub/Sub Publisher.
+
+Phase 2: Data Ingestion Pipelines
+Dataset 1 & 2 — Live Socrata APIs (NYC LION + Restaurants)
+Both datasets use the NYC Open Data Socrata API and do not need RAG — you call them live at query time. Create a shared socrata_client.py:
+
+python
+import requests
+
+SOCRATA_BASE = "https://data.cityofnewyork.us/resource"
+APP_TOKEN = "YOUR_NYC_OPEN_DATA_TOKEN"  # free at data.cityofnewyork.us
+
+def search_restaurants(name=None, borough=None, grade=None, limit=20):
+    endpoint = f"{SOCRATA_BASE}/43nn-pn8j.json"
+    params = {"$$app_token": APP_TOKEN, "$limit": limit}
+    if name:    params["$where"] = f"upper(dba) like '%{name.upper()}%'"
+    if borough: params["boro"] = borough.upper()
+    if grade:   params["grade"] = grade
+    return requests.get(endpoint, params=params).json()
+
+def search_location_lion(street_name=None, borough_code=None, limit=20):
+    endpoint = f"{SOCRATA_BASE}/2v4z-66xt.json"
+    params = {"$$app_token": APP_TOKEN, "$limit": limit}
+    if street_name: params["$where"] = f"upper(street) like '%{street_name.upper()}%'"
+    if borough_code: params["boroughcode"] = borough_code
+    return requests.get(endpoint, params=params).json()
+Dataset 3 — HMDA NYC Data → Vertex AI RAG Engine
+HMDA historic data (2007–2017 available for download, newer via CFPB API) needs to be filtered to NYC MSA code 35620, loaded into Cloud Storage, then indexed:
+
+Step 3a — Download and filter to NYC, upload to GCS:
+
+bash
+# Download HMDA LAR for a given year (e.g. 2017)
+wget https://ffiec.cfpb.gov/v2/data-browser-api/view/csv?years=2017&msamds=35620 \
+  -O hmda_nyc_2017.csv
+
+gsutil cp hmda_nyc_2017.csv gs://YOUR_BUCKET/hmda/raw/
+Step 3b — Load into BigQuery for structured queries too:
+
+bash
+bq load --autodetect --source_format=CSV \
+  your_project:hmda_dataset.nyc_2017 \
+  gs://YOUR_BUCKET/hmda/raw/hmda_nyc_2017.csv
+Step 3c — Create Vertex AI RAG Corpus and ingest:
+
+python
+from vertexai.preview import rag
+import vertexai
+
+vertexai.init(project="YOUR_PROJECT", location="us-central1")
+
+corpus = rag.create_corpus(display_name="hmda-nyc-corpus")
+
+# Ingest from GCS
+rag.import_files(
+    corpus_name=corpus.name,
+    paths=["gs://YOUR_BUCKET/hmda/raw/"],
+    chunk_size=512,
+    chunk_overlap=100,
+)
+This gives you a managed RAG corpus that ADK agents can query with the vertex_ai_rag_retrieval tool.
+
+Phase 3: Build ADK Agents with A2A
+Google ADK natively supports A2A since mid-2025, meaning each agent runs as an independent A2A server that the orchestrator delegates to. Structure your repo like this:
+
+text
+agents/
+  orchestrator/     ← root agent, routes all requests
+  restaurant_agent/ ← calls Socrata restaurant API
+  location_agent/   ← calls Socrata LION API
+  hmda_rag_agent/   ← queries Vertex RAG Engine
+  whatsapp_agent/   ← formats & sends WA messages
+Orchestrator Agent
+python
+# agents/orchestrator/agent.py
+from google.adk.agents import Agent
+from google.adk.tools.agent_tool import AgentTool
+
+root_agent = Agent(
+    name="nyc_orchestrator",
+    model="gemini-2.0-flash",
+    description="Routes NYC queries to the right specialized agent.",
+    instruction="""
+    You are an assistant for Meta Ray-Ban glasses users in NYC.
+    - For restaurant queries: delegate to restaurant_agent
+    - For street/location queries: delegate to location_agent
+    - For housing, mortgage, HMDA, lending queries: delegate to hmda_rag_agent
+    - To send results via WhatsApp: delegate to whatsapp_agent
+    """,
+    tools=[
+        AgentTool(agent=restaurant_agent),
+        AgentTool(agent=location_agent),
+        AgentTool(agent=hmda_rag_agent),
+        AgentTool(agent=whatsapp_agent),
+    ]
+)
+HMDA RAG Agent
+python
+# agents/hmda_rag_agent/agent.py
+from google.adk.agents import Agent
+from google.adk.tools import vertex_ai_rag_retrieval
+
+hmda_rag_agent = Agent(
+    name="hmda_rag_agent",
+    model="gemini-2.0-flash",
+    description="Answers housing, mortgage, and lending questions using HMDA data.",
+    instruction="""
+    You serve nonprofits, housing advocates, regulators, and legal teams.
+    Use the RAG tool to retrieve relevant HMDA data for NYC.
+    Provide loan denial rates, lender patterns, and geographic lending gaps.
+    """,
+    tools=[
+        vertex_ai_rag_retrieval(
+            rag_corpus="projects/YOUR_PROJECT/locations/us-central1/ragCorpora/YOUR_CORPUS_ID",
+            similarity_top_k=10,
+        )
+    ]
+)
+A2A Server per Agent
+Each agent exposes itself as an A2A endpoint (ADK handles this automatically with one command):
+
+bash
+# Deploy each agent as its own A2A server on Cloud Run
+adk deploy cloud_run \
+  --project YOUR_PROJECT \
+  --region us-central1 \
+  --service-name hmda-rag-agent \
+  ./agents/hmda_rag_agent
+ADK's adk deploy cloud_run command automatically packages your code, builds a container, pushes to Artifact Registry, and deploys to Cloud Run — all in one step.
+
+Phase 4: WhatsApp Integration on GCP
+The WhatsApp flow uses Meta's Business Cloud API + GCP Pub/Sub to decouple ingestion from processing:
+
+text
+WhatsApp User → Meta Webhook → Cloud Run (webhook handler)
+                                    ↓ publish
+                              Pub/Sub Topic: "wa-inbound"
+                                    ↓ push subscription
+                              Cloud Run (ADK Orchestrator)
+                                    ↓ agent response
+                              WhatsApp Cloud API (send reply)
+Webhook handler (Cloud Run service 1):
+
+python
+# webhook_handler/main.py
+from fastapi import FastAPI, Request
+from google.cloud import pubsub_v1
+import json, os
+
+app = FastAPI()
+publisher = pubsub_v1.PublisherClient()
+TOPIC = f"projects/{os.environ['PROJECT_ID']}/topics/wa-inbound"
+
+@app.post("/webhook")
+async def whatsapp_webhook(request: Request):
+    payload = await request.json()
+    # Immediately ACK to Meta (must be <5 seconds)
+    msg = extract_message(payload)
+    publisher.publish(TOPIC, data=json.dumps(msg).encode())
+    return {"status": "ok"}
+ADK Orchestrator handles the Pub/Sub push, runs the agent pipeline, and sends the WhatsApp reply back via Meta's API.
+
+Store your WHATSAPP_TOKEN, VERIFY_TOKEN, and GEMINI_API_KEY in Secret Manager and inject them into Cloud Run at deploy time:
+
+bash
+gcloud run deploy webhook-handler \
+  --set-secrets="WHATSAPP_TOKEN=whatsapp-token:latest,GEMINI_KEY=gemini-key:latest"
+Phase 5: Connect VisionClaw + OpenClaw to GCP
+Since you already have VisionClaw and OpenClaw set up locally, connect them to your GCP orchestrator:
+
+In your OpenClaw config, add a custom tool that hits your Cloud Run orchestrator URL:
+
+python
+# In OpenClaw tools config
+{
+  "name": "nyc_assistant",
+  "description": "Search NYC restaurants, streets, or housing/HMDA data",
+  "endpoint": "https://nyc-orchestrator-XXXX-uc.a.run.app/run",
+  "method": "POST",
+  "auth": "Bearer YOUR_CLOUD_RUN_ID_TOKEN"
+}
+In VisionClaw, the Gemini Live session sees what the glasses see. When a user says "What's the health grade of this restaurant?", Gemini extracts the restaurant name from the visual feed, triggers OpenClaw's nyc_assistant tool, which calls your Cloud Run orchestrator, which delegates to the restaurant_agent, which queries the live Socrata API and returns the result as audio through the glasses.
+
+Phase 6: Full GCP Services Map
+Layer	Google Product	Purpose
+AI Inference	Gemini 2.0 Flash via Vertex AI	All agent LLM calls
+RAG	Vertex AI RAG Engine	HMDA corpus retrieval
+Agents	Google ADK + A2A	Multi-agent orchestration
+Compute	Cloud Run	Serverless agent hosting
+Messaging	Pub/Sub	WhatsApp webhook decoupling
+Data Warehouse	BigQuery	HMDA structured queries
+Object Storage	Cloud Storage	Raw HMDA files + embeddings
+Session State	Firestore	User conversation history
+Secrets	Secret Manager	API keys & tokens
+Container Registry	Artifact Registry	Docker images for Cloud Run
+Scheduling	Cloud Scheduler	Nightly HMDA/data refresh jobs
+Gateway	API Gateway	Rate limiting on WhatsApp endpoint
+Monitoring	Cloud Logging + Monitoring	Observability
+
+Phase 7: End-to-End Deployment Sequence
+Run these in order after all code is written:
+
+Provision infra — Create GCS bucket, BigQuery dataset, Firestore DB, Pub/Sub topic + subscription, Artifact Registry repo
+
+Ingest data — Run HMDA download/filter script, upload to GCS, load to BigQuery, create RAG corpus and import
+
+Deploy sub-agents — adk deploy cloud_run for restaurant_agent, location_agent, hmda_rag_agent, whatsapp_agent
+
+Deploy orchestrator — adk deploy cloud_run for root orchestrator, referencing sub-agent Cloud Run URLs as A2A remote agents
+
+Deploy webhook handler — gcloud run deploy webhook-handler for Meta WhatsApp webhook
+
+Configure Meta WhatsApp Business — Set webhook URL to your Cloud Run endpoint, verify token via Secret Manager
+
+Update OpenClaw — Add the orchestrator Cloud Run URL as a custom tool endpoint
+
+Test end-to-end — Send a WhatsApp message → verify Pub/Sub → verify ADK response → verify reply sent back
+
+For HMDA data freshness, schedule a Cloud Scheduler job to re-run the CFPB download + BigQuery load + RAG re-import nightly.
+
+Key Integration Note for Legal/Nonprofit Users
+The HMDA RAG agent is purpose-built for the glasses use case where a housing advocate or regulator is on-site at a building or bank. They can ask "What are the mortgage denial rates for Black applicants in this zip code?" hands-free, and the RAG agent retrieves from your HMDA corpus and responds through Gemini Live audio. For deeper structured analysis (e.g., lender-level tables), the hmda_rag_agent can also fall back to a BigQuery tool for precise SQL queries against your HMDA dataset rather than just semantic retrieval.

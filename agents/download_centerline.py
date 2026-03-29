@@ -13,17 +13,22 @@ into the Docker image for Cloud Run deployment.
 
 import os
 import sys
+import ssl
 import urllib.request
-import json
+
+# Fix SSL certificate verification on macOS
+try:
+    import certifi
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+except ImportError:
+    ssl_context = ssl.create_default_context()
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 OUTPUT_FILE = os.path.join(DATA_DIR, "centerline.geojson")
 
-# NYC Open Data GeoJSON export URL for the Centerline dataset (3mf9-qshr)
-GEOJSON_URL = (
-    "https://data.cityofnewyork.us/api/geospatial/3mf9-qshr"
-    "?method=export&type=GeoJSON"
-)
+# NYC Open Data GeoJSON export URL for the Centerline dataset
+# Using the resource download endpoint which is more reliable
+GEOJSON_URL = "https://data.cityofnewyork.us/resource/3mf9-qshr.geojson?$limit=500000"
 
 
 def download():
@@ -54,6 +59,11 @@ def download():
         sys.stdout.flush()
 
     try:
+        # Use SSL context with certifi certificates
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPSHandler(context=ssl_context)
+        )
+        urllib.request.install_opener(opener)
         urllib.request.urlretrieve(GEOJSON_URL, OUTPUT_FILE, reporthook=progress)
         print()
     except Exception as e:
