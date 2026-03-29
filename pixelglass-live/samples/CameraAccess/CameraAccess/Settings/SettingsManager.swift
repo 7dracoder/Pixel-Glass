@@ -89,7 +89,7 @@ final class SettingsManager {
   // MARK: - ADK Agent
 
   var adkAgentURL: String {
-    get { defaults.string(forKey: Key.adkAgentURL.rawValue) ?? "" }
+    get { defaults.string(forKey: Key.adkAgentURL.rawValue) ?? Secrets.adkAgentURL }
     set { defaults.set(newValue, forKey: Key.adkAgentURL.rawValue) }
   }
 

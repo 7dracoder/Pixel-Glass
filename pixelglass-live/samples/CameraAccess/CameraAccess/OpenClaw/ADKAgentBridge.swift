@@ -118,7 +118,7 @@ class ADKAgentBridge: ObservableObject {
     func sendQuery(query: String, category: String?, location: CLLocation?) async -> ToolResult {
         lastToolCallStatus = .executing("nyc_lookup")
 
-        guard isConfigured, let url = URL(string: "\(baseURL)/run") else {
+        guard isConfigured, let url = URL(string: baseURL) else {
             lastToolCallStatus = .failed("nyc_lookup", "ADK agent URL not configured")
             return .failure("ADK agent URL not configured")
         }
@@ -129,20 +129,25 @@ class ADKAgentBridge: ObservableObject {
             enrichedQuery = "User's current GPS location: latitude=\(loc.coordinate.latitude), longitude=\(loc.coordinate.longitude). \(query)"
         }
 
-        // Build A2A request
-        let body = ADKRunRequest(
-            appName: "agents",
-            userId: userId,
-            sessionId: sessionId,
-            newMessage: .init(role: "user", parts: [.init(text: enrichedQuery)])
-        )
+        // Map category to mode expected by the server
+        let mode: String
+        switch category {
+        case "restaurant": mode = "restaurant"
+        case "location":   mode = "location"
+        default:           mode = "restaurant" // default fallback
+        }
+
+        let body: [String: Any] = [
+            "message": enrichedQuery,
+            "mode": mode
+        ]
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         do {
-            request.httpBody = try JSONEncoder().encode(body)
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
         } catch {
             lastToolCallStatus = .failed("nyc_lookup", "Failed to encode request")
             return .failure("Failed to encode request")
@@ -176,49 +181,45 @@ class ADKAgentBridge: ObservableObject {
     // MARK: - Response Parsing
 
     func extractTextFromResponse(_ data: Data) -> String {
-        guard let raw = String(data: data, encoding: .utf8) else {
-            return "Unable to parse response"
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return String(data: data, encoding: .utf8) ?? "Unable to parse response"
         }
 
-        var texts: [String] = []
-
-        // Try SSE format first (data: {...}\n lines)
-        let lines = raw.components(separatedBy: "\n")
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard trimmed.hasPrefix("data:") else { continue }
-            let jsonStr = String(trimmed.dropFirst(5)).trimmingCharacters(in: .whitespaces)
-            guard let jsonData = jsonStr.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                  let content = json["content"] as? [String: Any],
-                  let parts = content["parts"] as? [[String: Any]] else { continue }
-            for part in parts {
-                if let text = part["text"] as? String, !text.isEmpty {
-                    texts.append(text)
-                }
+        // Restaurant response: {"count": N, "restaurants": [...], "query": "..."}
+        if let restaurants = json["restaurants"] as? [[String: Any]], !restaurants.isEmpty {
+            var lines: [String] = []
+            let count = json["count"] as? Int ?? restaurants.count
+            lines.append("Found \(count) restaurant(s):")
+            for r in restaurants.prefix(5) {
+                let name    = r["name"]            as? String ?? "Unknown"
+                let address = r["address"]         as? String ?? ""
+                let borough = r["borough"]         as? String ?? ""
+                let cuisine = r["cuisine"]         as? String ?? ""
+                let grade   = r["grade"]           as? String ?? "N/A"
+                lines.append("• \(name) — \(cuisine), \(address) \(borough), Grade: \(grade)")
             }
+            return lines.joined(separator: "\n")
         }
 
-        // Fallback: try parsing as plain JSON
-        if texts.isEmpty, let json = try? JSONSerialization.jsonObject(with: data) {
-            if let arr = json as? [[String: Any]] {
-                for event in arr {
-                    if let content = event["content"] as? [String: Any],
-                       let parts = content["parts"] as? [[String: Any]] {
-                        for part in parts {
-                            if let text = part["text"] as? String, !text.isEmpty {
-                                texts.append(text)
-                            }
-                        }
-                    }
-                }
-            } else if let dict = json as? [String: Any],
-                      let text = dict["text"] as? String, !text.isEmpty {
-                texts.append(text)
+        // Street/location response: {"count": N, "streets": [...], "query": "..."}
+        if let streets = json["streets"] as? [[String: Any]], !streets.isEmpty {
+            var lines: [String] = []
+            let count = json["count"] as? Int ?? streets.count
+            lines.append("Found \(count) street(s):")
+            for s in streets.prefix(5) {
+                let name    = s["full_name"]  as? String ?? s["street"] as? String ?? "Unknown"
+                let borough = s["boro_name"]  as? String ?? s["borough"] as? String ?? ""
+                let zip     = s["zip_code"]   as? String ?? "N/A"
+                lines.append("• \(name), \(borough) (zip: \(zip))")
             }
+            return lines.joined(separator: "\n")
         }
 
-        return texts.isEmpty ? "No response from agent" : texts.joined(separator: "\n")
+        // Error response
+        if let error = json["error"] as? String { return "Error: \(error)" }
+
+        // Fallback: return raw JSON as string
+        return String(data: data, encoding: .utf8) ?? "No response from agent"
     }
 
     // MARK: - Location Relevance
